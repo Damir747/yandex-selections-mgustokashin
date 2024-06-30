@@ -18,58 +18,50 @@ rl.on('close', () => {
 			from: Number(from),
 			startTime: timeToMinutes(startTime),
 			to: Number(to),
-			endTime: timeToMinutes(endTime)
+			endTime: timeToMinutes(endTime),
 		};
 	});
 
-	const cities = Array.from({ length: N + 1 }).fill(0);
-	let count = 0;
-
-	const obj = {};
+	const events = [];
+	const cities = Array.from({ length: N + 1 }, () => 0);
 	for (const trip of trips) {
-		addToObj(obj, trip.startTime, { direction: 'start', city: trip.from });
-		addToObj(obj, trip.startTime + 24 * 60, { direction: 'start', city: trip.from });
+		events.push({ time: trip.startTime, direction: 'start', city: trip.from });
+		events.push({ time: trip.startTime + 24 * 60, direction: 'start', city: trip.from });
 		if (trip.endTime > trip.startTime) {
-			addToObj(obj, trip.endTime, { direction: 'end', city: trip.to });
+			events.push({ time: trip.endTime, direction: 'end', city: trip.to });
 		}
-		addToObj(obj, trip.endTime + 24 * 60, { direction: 'end', city: trip.to });
+		events.push({ time: trip.endTime + 24 * 60, direction: 'end', city: trip.to });
+		cities[trip.from]--;
+		cities[trip.to]++;
 	}
 
-	const keyTime = Object.keys(obj).sort((a, b) => +a - +b);
+	events.sort((a, b) => a.time < b.time ? -1 :
+		a.time > b.time ? 1 :
+			a.direction === 'end' ? -1 : 1);
 
-	for (let i = 0; i < keyTime.length; i++) {
-		obj[keyTime[i]].sort((a, b) => a.direction === 'end' ? -1 : 1);
-	}
-
-	for (let i = 0; i < keyTime.length; i++) {
-		for (let j = 0; j < obj[keyTime[i]].length; j++) {
-			if (obj[keyTime[i]][j].direction === 'end') {
-				cities[obj[keyTime[i]][j].city]++;
+	function foo() {
+		if (new Set(cities).size !== 1) {
+			return -1;
+		}
+		let count = 0;
+		for (let i = 0; i < events.length; i++) {
+			if (events[i].direction === 'end') {
+				cities[events[i].city]++;
 			} else {
-				if (cities[obj[keyTime[i]][j].city] === 0) {
+				if (cities[events[i].city] === 0) {
 					count++;
 				} else {
-					cities[obj[keyTime[i]][j].city]--;
+					cities[events[i].city]--;
 				}
 			}
 		}
+		return count;
 	}
-	if (count > 100_000) {
-		console.log(-1);
-	} else {
-		console.log(count);
-	}
+	console.log(foo().toString());
 	rl.close();
 });
 
 function timeToMinutes(time) {
 	const [hours, minutes] = time.split(':').map(Number);
 	return hours * 60 + minutes;
-}
-
-function addToObj(obj, key, value) {
-	if (!obj.hasOwnProperty(key)) {
-		obj[key] = [];
-	}
-	obj[key].push(value);
 }
